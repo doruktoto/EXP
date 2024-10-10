@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Clustering</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        .card {
+            width: 150px;
+            height: 200px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: white;
+            cursor: move;
+            user-select: none;
+            position: relative;
+        }
+        .card .ascii-art {
+            width: 100%;
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: monospace;
+            font-size: 10px;
+            white-space: pre;
+            overflow: hidden;
+        }
+        .card .name {
+            padding: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Card Clustering</h1>
+    
+    <div class="card-container" id="card-container"></div>
+
+    <script>
+        const cardContainer = document.getElementById('card-container');
+        let draggedCard = null;
+        let offsetX, offsetY;
+
+        const cards = [
+            { name: "Charging your Devices", ascii: `
+   _____
+  /     \\
+ /  /-\\  \\
+|  |   |  |
+|  |   |  |
+|  \\___/  |
+ \\       /
+  \\_____/
+    |||
+    |||
+    |||` },
+            { name: "Cat/Dog", ascii: `
+  /\\___/\\
+ (  o o  )
+ /   V   \\
+/(  \\^/  )\\
+ ^^ d b ^^` },
+            { name: "Water bottle", ascii: `
+    ____
+   |    |
+   |    |
+   |    |
+   |    |
+   |    |
+   |____|
+    \\__/` },
+            { name: "Showering", ascii: `
+    _____
+   /     \\
+  /  o o  \\
+ |    ^    |
+  \\  \\_/  /
+   \\_____/
+      |
+    \\ | /
+     \\|/
+      |` },
+            { name: "Flushing", ascii: `
+   _______
+  /       \\
+ /  _____  \\
+|  /     \\  |
+| |       | |
+| |       | |
+ \\ \\_____/ /
+  \\_______/` },
+            { name: "Barricades", ascii: `
+   ______
+  |      |
+  | ____ |
+  ||    ||
+  ||    ||
+  ||____||
+  |      |
+  |      |
+  |______|` },
+            { name: "Heating", ascii: `
+    _____
+   /     \\
+  /  hot  \\
+ /  stuff  \\
+ \\   !!!  /
+  \\     /
+   \\___/` },
+            { name: "Lighting", ascii: `
+      /\\
+     /  \\
+    /    \\
+   /      \\
+  /   []   \\
+ /    []    \\
+/____________\\` },
+            { name: "Canned food", ascii: `
+   _______
+  /       \\
+ /  BEANS  \\
+|   ____   |
+|  |    |  |
+|  |    |  |
+ \\  \\__/  /
+  \\_______/` },
+            { name: "Internet connection", ascii: `
+     /\\
+    /  \\
+   /    \\
+  /  ()  \\
+ /   ||   \\
+/____||____\\
+     ||
+     ||` },
+            { name: "Cellular Connection", ascii: `
+    | | | |
+    | | | |
+    | | | |
+    | | | |
+  __| | | |__
+ /  | | | |  \\
+/___| | | |___\\` },
+            { name: "Bottled water", ascii: `
+    ____
+   |    |
+   |    |
+   | H  |
+   | 2  |
+   | O  |
+   |____|
+    \\__/` },
+            { name: "Information", ascii: `
+   _____
+  /     \\
+ /   i   \\
+|    !    |
+ \\       /
+  \\_____/` },
+            { name: "Insurance", ascii: `
+ _________
+|  Policy |
+|   ___   |
+|  |   |  |
+|  |___|  |
+|_________| ` },
+            { name: "Advice", ascii: `
+    ____
+   /    \\
+  / ?  ! \\
+ |   __   |
+  \\ (  ) /
+   \\____/` },
+            { name: "Cooking Gas", ascii: `
+    ____
+   /    \\
+  | Propane |
+   \\____/
+    |  |
+    |  |
+    |__|` },
+            { name: "Clothes", ascii: `
+    ___
+   /   \\
+  |  T  |
+  |  |  |
+  |__|__| ` },
+            { name: "Medical Kit", ascii: `
+ _______
+|   +   |
+|  ___  |
+| |   | |
+| |___| |
+|_______|` },
+            { name: "Raft", ascii: `
+   _____
+  /     \\
+ /       \\
+|         |
+ \\       /
+  \\_____/` },
+            { name: "Important Documents", ascii: `
+ _______
+|       |
+| DOC   |
+|   ___ |
+|  |___||
+|_______|` },
+            { name: "Valuables", ascii: `
+   ___
+  /   \\
+ / $$$ \\
+|  $$$  |
+ \\ $$$ /
+  \\___/` },
+            { name: "Water purifier", ascii: `
+   ___
+  |   |
+  | H |
+  | 2 |
+  | O |
+  |___|
+   | |` }
+        ];
+
+        function createCard(name, asciiArt) {
+            const card = document.createElement('div');
+            card.className = 'card';
+
+            const artElement = document.createElement('div');
+            artElement.className = 'ascii-art';
+            artElement.textContent = asciiArt;
+
+            const nameElement = document.createElement('div');
+            nameElement.className = 'name';
+            nameElement.textContent = name;
+
+            card.appendChild(artElement);
+            card.appendChild(nameElement);
+
+            card.addEventListener('mousedown', startDragging);
+            cardContainer.appendChild(card);
+        }
+
+        function startDragging(e) {
+            draggedCard = e.target.closest('.card');
+            const rect = draggedCard.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            
+            draggedCard.style.position = 'fixed';
+            draggedCard.style.zIndex = 1000;
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDragging);
+        }
+
+        function drag(e) {
+            if (draggedCard) {
+                let newX = e.clientX - offsetX;
+                let newY = e.clientY - offsetY;
+
+                newX = Math.max(0, Math.min(newX, window.innerWidth - draggedCard.offsetWidth));
+                newY = Math.max(0, Math.min(newY, window.innerHeight - draggedCard.offsetHeight));
+
+                draggedCard.style.left = newX + 'px';
+                draggedCard.style.top = newY + 'px';
+            }
+        }
+
+        function stopDragging() {
+            if (draggedCard) {
+                const containerRect = cardContainer.getBoundingClientRect();
+                const cardRect = draggedCard.getBoundingClientRect();
+                
+                draggedCard.style.position = 'absolute';
+                draggedCard.style.left = (cardRect.left - containerRect.left) + 'px';
+                draggedCard.style.top = (cardRect.top - containerRect.top) + 'px';
+            }
+            
+            draggedCard = null;
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDragging);
+        }
+
+        // Create all cards
+        cards.forEach(card => createCard(card.name, card.ascii));
+    </script>
+</body>
+</html>
